@@ -61,7 +61,12 @@ model JobSeekerProfile {
   linkedinUrl           String?
   githubUrl             String?
   
-  skills                Skill[]
+  // Simple string fields for skills, experience, education
+  skills                String[]  @default([])
+  experience            String?
+  education             String?
+  
+  skill                 Skill[]
   workExperiences       WorkExperience[]
   educations            Education[]
   certifications        Certification[]

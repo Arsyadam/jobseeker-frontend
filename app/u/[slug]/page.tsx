@@ -18,7 +18,6 @@ import {
   GraduationCap,
   ArrowLeft,
   Loader2,
-  X,
   AlertCircle,
 } from "lucide-react";
 import Link from "next/link";
@@ -51,26 +50,51 @@ export default function PublicProfilePage() {
   const [retryCount, setRetryCount] = useState(0);
 
   // Helper function to transform user data to PublicProfile format
-  const transformUserData = (userData: any, slug: string): PublicProfile => {
+  const transformUserData = (
+    userData: unknown,
+    slug: string
+  ): PublicProfile => {
+    const data = userData as Record<string, unknown>;
+    const jobSeekerProfile = data.jobSeekerProfile as
+      | Record<string, unknown>
+      | undefined;
+
     return {
-      id: userData.id,
-      firstName: userData.firstName || "",
-      lastName: userData.lastName || "",
-      profilePicture: userData.profilePicture || "",
-      bio: userData.jobSeekerProfile?.bio || userData.bio || "",
-      skills: userData.jobSeekerProfile?.skills || userData.skills || [],
+      id: (data.id as string) || "",
+      firstName: (data.firstName as string) || "",
+      lastName: (data.lastName as string) || "",
+      profilePicture: (data.profilePicture as string) || "",
+      bio: (jobSeekerProfile?.bio as string) || (data.bio as string) || "",
+      skills:
+        (jobSeekerProfile?.skills as string[]) ||
+        (data.skills as string[]) ||
+        [],
       experience:
-        userData.jobSeekerProfile?.experience || userData.experience || "",
+        (jobSeekerProfile?.experience as string) ||
+        (data.experience as string) ||
+        "",
       education:
-        userData.jobSeekerProfile?.education || userData.education || "",
-      location: userData.jobSeekerProfile?.location || userData.location || "",
-      phone: userData.jobSeekerProfile?.phone || userData.phone || "",
-      linkedin: userData.jobSeekerProfile?.linkedin || userData.linkedin || "",
-      github: userData.jobSeekerProfile?.github || userData.github || "",
+        (jobSeekerProfile?.education as string) ||
+        (data.education as string) ||
+        "",
+      location:
+        (jobSeekerProfile?.location as string) ||
+        (data.location as string) ||
+        "",
+      phone:
+        (jobSeekerProfile?.phone as string) || (data.phone as string) || "",
+      linkedin:
+        (jobSeekerProfile?.linkedin as string) ||
+        (data.linkedin as string) ||
+        "",
+      github:
+        (jobSeekerProfile?.github as string) || (data.github as string) || "",
       portfolio:
-        userData.jobSeekerProfile?.portfolio || userData.portfolio || "",
-      slug: userData.slug || slug,
-      profileComplete: userData.profileComplete || false,
+        (jobSeekerProfile?.portfolio as string) ||
+        (data.portfolio as string) ||
+        "",
+      slug: (data.slug as string) || slug,
+      profileComplete: (data.profileComplete as boolean) || false,
     };
   };
 
@@ -90,11 +114,11 @@ export default function PublicProfilePage() {
             console.log("Direct API response:", response);
 
             if (response.success && response.data) {
-              const userData = response.data as any;
+              const userData = response.data as unknown;
               setProfile(transformUserData(userData, slug));
               return; // Success, exit early
             }
-          } catch (directError) {
+          } catch {
             console.log("Direct profile endpoint failed, trying fallback...");
           }
 
@@ -106,34 +130,37 @@ export default function PublicProfilePage() {
           if (allTalentsResponse.success && allTalentsResponse.data) {
             const talents = Array.isArray(allTalentsResponse.data)
               ? allTalentsResponse.data
-              : (allTalentsResponse.data as any).items || [];
+              : ((allTalentsResponse.data as unknown as Record<string, unknown>)
+                  .items as unknown[]) || [];
 
             // Find profile by slug, ID, or name, or locally stored slug
-            const matchingProfile = talents.find((talent: any) => {
+            const matchingProfile = talents.find((talent: unknown) => {
+              const talentData = talent as Record<string, unknown>;
+
               // Check direct slug match
-              if (talent.slug === slug) return true;
+              if (talentData.slug === slug) return true;
 
               // Check ID match
-              if (talent.id === slug) return true;
+              if (talentData.id === slug) return true;
 
               // Check auto-generated name slug
-              const autoSlug =
-                `${talent.firstName?.toLowerCase()}-${talent.lastName?.toLowerCase()}`.replace(
-                  /\s+/g,
-                  "-"
-                );
+              const autoSlug = `${(
+                talentData.firstName as string
+              )?.toLowerCase()}-${(
+                talentData.lastName as string
+              )?.toLowerCase()}`.replace(/\s+/g, "-");
               if (autoSlug === slug.toLowerCase()) return true;
 
               // Check locally stored slug
               if (typeof window !== "undefined") {
                 const localSlugData = localStorage.getItem(
-                  `user_slug_${talent.id}`
+                  `user_slug_${talentData.id}`
                 );
                 if (localSlugData) {
                   try {
                     const parsedData = JSON.parse(localSlugData);
                     if (parsedData.slug === slug) return true;
-                  } catch (e) {
+                  } catch {
                     // Ignore parsing errors
                   }
                 }
@@ -153,29 +180,34 @@ export default function PublicProfilePage() {
           setError(
             `Profile "${slug}" not found. This profile may not exist or may be private.`
           );
-        } catch (apiError: any) {
-          console.error("API call failed:", apiError);
+        } catch (apiError) {
+          interface ErrorObj {
+            name?: string;
+            message?: string;
+          }
+          const error = apiError as unknown as ErrorObj;
+          console.error("API call failed:", error);
 
           // More specific error handling
           if (
-            apiError?.name === "TypeError" &&
-            apiError?.message?.includes("Failed to fetch")
+            error?.name === "TypeError" &&
+            error?.message?.includes("Failed to fetch")
           ) {
             setError(
               "Backend server is not running. Please start your API server at http://localhost:3131 or check your network connection."
             );
-          } else if (apiError?.message?.includes("404")) {
+          } else if (error?.message?.includes("404")) {
             setError(
               `Profile "${slug}" does not exist. Please check the URL or create a profile first.`
             );
-          } else if (apiError?.message?.includes("ECONNREFUSED")) {
+          } else if (error?.message?.includes("ECONNREFUSED")) {
             setError(
               "Cannot connect to the backend server. Please ensure your API server is running at http://localhost:3131"
             );
           } else {
             setError(
               `Unable to load profile. Error: ${
-                apiError?.message || "Unknown error"
+                error?.message || "Unknown error"
               }. Please try again or check if the backend server is running.`
             );
           }

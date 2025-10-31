@@ -1,6 +1,6 @@
 // apiClient.ts
 
-interface ApiResponse<T = any> {
+interface ApiResponse<T = unknown> {
   success: boolean
   data?: T
   message?: string
@@ -20,6 +20,54 @@ interface PaginatedResponse<T> {
       hasPrev: boolean
     }
   }
+}
+
+interface User {
+  id: string
+  email: string
+  firstName: string
+  lastName: string
+  role: "JOBSEEKER" | "HRD"
+  profileComplete: boolean
+  profilePicture?: string
+  companyName?: string
+}
+
+export interface RegisterData {
+  email: string
+  password: string
+  firstName: string
+  lastName: string
+  role: "JOBSEEKER" | "HRD"
+  phone?: string
+  companyName?: string
+}
+
+interface JobData {
+  title: string
+  description: string
+  requirements?: string[] | string
+  location?: string
+  [key: string]: unknown
+}
+
+interface ProfileData {
+  firstName?: string
+  lastName?: string
+  phone?: string
+  location?: string
+  profilePicture?: string
+  slug?: string
+  jobSeekerProfile?: Record<string, unknown>
+  hrdProfile?: Record<string, unknown>
+  [key: string]: unknown
+}
+
+interface ApplicationData {
+  jobId: string
+  coverLetter?: string
+  portfolioLinks?: string[]
+  customAnswers?: Record<string, unknown>
 }
 
 class ApiClient {
@@ -66,7 +114,7 @@ class ApiClient {
       // Try fallback API (Next.js routes)
       try {
         return await this.makeRequest<T>(this.fallbackURL + endpoint, options);
-      } catch (fallbackError) {
+      } catch {
         console.error("Both primary and fallback APIs failed");
         throw primaryError; // Throw the original error
       }
@@ -118,17 +166,32 @@ class ApiClient {
         ok: response.ok,
       })
 
-      // Handle empty responses (e.g., 204 No Content)
+      // Robust response parsing: try to read text then parse JSON.
+      // Some backends return empty bodies, plain text errors, or omit Content-Length.
       let data: ApiResponse<T>
-      if (response.headers.get("Content-Length") !== "0") {
-        data = await response.json()
+      const rawText = await response.text().catch(() => "")
+
+      if (rawText) {
+        try {
+          data = JSON.parse(rawText) as ApiResponse<T>
+        } catch {
+          // Not JSON — wrap the text in a predictable structure so callers can inspect it
+          data = { success: response.ok, message: rawText }
+        }
       } else {
         data = { success: response.ok }
       }
 
       if (!response.ok) {
-        console.error("API Error Response:", data)
-        throw new Error(data.error || data.message || `HTTP error! status: ${response.status}`)
+        console.error("API Error Response:", {
+          status: response.status,
+          statusText: response.statusText,
+          body: rawText,
+          parsed: data,
+        })
+        // Include status and body in the thrown error to make debugging easier
+        const errMsg = data.error || data.message || `${response.status} ${response.statusText}`
+        throw new Error(`HTTP ${response.status}: ${errMsg}`)
       }
 
       return data
@@ -143,7 +206,7 @@ class ApiClient {
   // ========================================
   async login(email: string, password: string, role: string) {
     return this.request<{
-      user: any
+      user: User
       token: string
     }>("/auth/login", {
       method: "POST",
@@ -151,9 +214,9 @@ class ApiClient {
     })
   }
 
-  async register(userData: any) {
+  async register(userData: RegisterData) {
     return this.request<{
-      user: any
+      user: User
       token: string
     }>("/auth/register", {
       method: "POST",
@@ -216,7 +279,7 @@ class ApiClient {
     return this.request("/profile")
   }
 
-  async updateProfile(profileData: any) {
+  async updateProfile(profileData: ProfileData) {
     console.log('API updateProfile called with:', profileData);
     const response = await this.request("/profile", {
       method: "PUT",
@@ -226,7 +289,12 @@ class ApiClient {
     return response;
   }
 
-  async uploadProfilePhoto(file: File) {
+  async uploadProfilePhoto(file: File): Promise<ApiResponse<{
+    url: string;
+    thumbnailUrl: string;
+    publicId: string;
+    profileCompletion: number;
+  }>> {
     const formData = new FormData()
     formData.append("photo", file)
 
@@ -234,6 +302,14 @@ class ApiClient {
       method: "POST",
       body: formData,
       // Don't set Content-Type — let fetch set it automatically
+    })
+  }
+
+  async deleteProfilePhoto(): Promise<ApiResponse<{
+    profileCompletion: number;
+  }>> {
+    return this.request("/profile/photo", {
+      method: "DELETE",
     })
   }
 
@@ -275,21 +351,21 @@ class ApiClient {
       if (value != null) searchParams.append(key, value.toString())
     })
 
-    return this.request<PaginatedResponse<any>>(`/jobs?${searchParams}`)
+    return this.request<PaginatedResponse<unknown>>(`/jobs?${searchParams}`)
   }
 
   async getJob(id: string) {
     return this.request(`/jobs/${id}`)
   }
 
-  async createJob(jobData: any) {
+  async createJob(jobData: JobData) {
     return this.request("/jobs", {
       method: "POST",
       body: JSON.stringify(jobData),
     })
   }
 
-  async updateJob(id: string, jobData: any) {
+  async updateJob(id: string, jobData: JobData) {
     console.log("Updating job:", { id, jobData });
     try {
       const response = await this.request(`/jobs/${id}`, {
@@ -328,12 +404,7 @@ class ApiClient {
   // ========================================
   // Applications
   // ========================================
-  async applyToJob(applicationData: {
-    jobId: string
-    coverLetter?: string
-    portfolioLinks?: string[]
-    customAnswers?: any
-  }) {
+  async applyToJob(applicationData: ApplicationData) {
     return this.request("/applications", {
       method: "POST",
       body: JSON.stringify(applicationData),
@@ -353,7 +424,7 @@ class ApiClient {
       if (value != null) searchParams.append(key, value.toString())
     })
 
-    return this.request<PaginatedResponse<any>>(`/applications?${searchParams}`)
+    return this.request<PaginatedResponse<unknown>>(`/applications?${searchParams}`)
   }
 
   // ========================================
@@ -446,7 +517,7 @@ class ApiClient {
       if (value != null) searchParams.append(key, value.toString())
     })
 
-    return this.request<PaginatedResponse<any>>(`/companies?${searchParams}`)
+    return this.request<PaginatedResponse<unknown>>(`/companies?${searchParams}`)
   }
 
   async getCompany(id: string) {
@@ -472,7 +543,7 @@ class ApiClient {
       if (value != null) searchParams.append(key, value.toString())
     })
 
-    return this.request<PaginatedResponse<any>>(`/talent?${searchParams}`)
+    return this.request<PaginatedResponse<unknown>>(`/talent?${searchParams}`)
   }
 
   async getTalentProfile(id: string) {

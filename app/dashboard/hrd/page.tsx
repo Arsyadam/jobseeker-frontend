@@ -21,7 +21,6 @@ import Navbar from "@/components/shared/Navbar";
 import {
   Plus,
   Search,
-  Users,
   Briefcase,
   Eye,
   Settings,
@@ -33,7 +32,6 @@ import {
   MapPin,
   DollarSign,
   Edit2,
-  LogOut,
   Shield,
   AlertCircle,
 } from "lucide-react";
@@ -59,18 +57,26 @@ interface Job {
   applicationCount?: number;
 }
 
+interface User {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role?: string;
+  profilePicture?: string;
+  companyName?: string;
+  location?: string;
+  phone?: string;
+  industry?: string;
+  companySize?: string;
+}
+
 interface Application {
   id: string;
   status: string;
   appliedAt: string;
   coverLetter?: string;
-  user: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    profilePicture?: string;
-  };
+  user: User;
   job: {
     title: string;
     companyName: string;
@@ -84,21 +90,8 @@ export default function HRDDashboard() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
 
-  // Logout function
-  const handleLogout = () => {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("auth_token");
-      toast({
-        title: "Berhasil logout",
-        description: "Anda telah berhasil keluar dari sistem",
-      });
-      window.location.href = "/auth/login";
-    }
-  };
-
-  // Get auth token from localStorage
   const getAuthToken = () => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("auth_token");
@@ -123,7 +116,7 @@ export default function HRDDashboard() {
 
       if (response.success) {
         console.log("Profile data:", response.data);
-        const userData = response.data as any;
+        const userData = response.data as User;
 
         // Check if user has HRD role
         if (userData.role !== "HRD") {
@@ -139,7 +132,7 @@ export default function HRDDashboard() {
         setError("Failed to load profile data");
         return;
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error("Error fetching profile:", err);
       setError("Failed to connect to server");
       return;
@@ -154,10 +147,9 @@ export default function HRDDashboard() {
       console.log("Response:", response);
       console.log("Response.data:", response.data);
 
-      if (response.success) {
+      if (response.success && response.data && "items" in response.data) {
         // Handle the paginated response structure
-        // Response structure: { success: true, data: { items: [...], pagination: {...} } }
-        const jobsData = (response.data as any)?.items || [];
+        const jobsData = response.data.items as Job[];
         console.log("Jobs data:", jobsData);
         console.log("Number of jobs:", jobsData.length);
         setJobs(jobsData);
@@ -175,12 +167,11 @@ export default function HRDDashboard() {
   const fetchApplications = async () => {
     try {
       const response = await apiClient.getApplications();
-      if (response.success) {
+      if (response.success && response.data && "items" in response.data) {
         // Handle the paginated response structure
-        setApplications(
-          response.data?.data?.items ||
-            (Array.isArray(response.data) ? response.data : [])
-        );
+        setApplications(response.data.items as Application[]);
+      } else if (response.success && Array.isArray(response.data)) {
+        setApplications(response.data as Application[]);
       } else {
         console.error("Failed to fetch applications:", response.message);
       }

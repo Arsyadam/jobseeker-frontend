@@ -1,5 +1,5 @@
 import { readFile } from "fs/promises"
-import * as pdfParse from "pdf-parse"
+import pdfParse from "pdf-parse"
 
 export class CVParser {
   static async extractTextFromPDF(filePath: string): Promise<string> {
@@ -15,6 +15,9 @@ export class CVParser {
 
   static async extractTextFromDOC(filePath: string): Promise<string> {
     try {
+      // TODO: Implement DOC/DOCX extraction using mammoth.js
+      // For now, return a placeholder message
+      console.log('DOC extraction not yet implemented for:', filePath);
       // For DOC/DOCX files, you would use libraries like mammoth
       // const mammoth = require('mammoth')
       // const result = await mammoth.extractRawText({ path: filePath })

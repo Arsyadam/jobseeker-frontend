@@ -26,6 +26,7 @@ interface RegisterData {
   firstName: string
   lastName: string
   role: "JOBSEEKER" | "HRD"
+  phone?: string
   companyName?: string
 }
 
@@ -175,10 +176,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }))
 
     try {
+      console.log("Registering user with data:", userData)
       const response = await apiClient.register(userData)
+      console.log("Register response:", response)
       
       if (response.success && response.data) {
         const { user: newUser, token } = response.data
+        console.log("Registration successful, user:", newUser)
         
         setState(prevState => ({
           ...prevState,
@@ -190,7 +194,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setStorageItem(STORAGE_KEYS.AUTH_TOKEN, token)
         setStorageItem(STORAGE_KEYS.USER_DATA, JSON.stringify(newUser))
       } else {
-        throw new Error(response.error || "Registration failed")
+        const errorMsg = response.error || response.message || "Registration failed"
+        console.error("Registration error response:", response)
+        throw new Error(errorMsg)
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Registration failed"

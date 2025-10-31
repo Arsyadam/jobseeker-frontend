@@ -2,15 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { apiClient } from "@/lib/api";
-import { useAuth } from "@/hooks/useAuth";
+
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -29,7 +23,6 @@ import {
   Building,
   TrendingUp,
   Star,
-  Filter,
   Globe,
   Loader2,
   ArrowRight,
@@ -103,7 +96,6 @@ const locations = [
 ];
 
 export default function CompaniesPage() {
-  const { user, logout } = useAuth();
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -129,37 +121,57 @@ export default function CompaniesPage() {
 
         if (response.success) {
           // Handle both direct array and paginated response
+          const responseObj = response.data as unknown as Record<
+            string,
+            unknown
+          >;
           const companiesData = Array.isArray(response.data)
             ? response.data
-            : (response.data as any)?.items || response.data || [];
+            : (responseObj?.items as unknown[]) || response.data || [];
 
           // Transform the data to match our interface
-          const transformedCompanies = companiesData.map((company: any) => ({
-            id: company.id,
-            name:
-              company.hrdProfile?.companyName ||
-              company.companyName ||
-              `${company.firstName} ${company.lastName}`,
-            description:
-              company.hrdProfile?.companyDescription ||
-              company.companyDescription,
-            industry: company.hrdProfile?.industry || company.industry,
-            location: company.location,
-            size:
-              company.hrdProfile?.companySize ||
-              company.companySize ||
-              "Unknown",
-            website:
-              company.hrdProfile?.companyWebsite || company.companyWebsite,
-            logo: company.hrdProfile?.companyLogo || company.companyLogo,
-            jobOpenings: company._count?.jobPostings || 0,
-            isVerified: true, // All database companies are verified
-            foundedYear: company.createdAt
-              ? new Date(company.createdAt).getFullYear()
-              : undefined,
-            rating: 4.5 + Math.random() * 0.5, // Generate random rating between 4.5-5.0
-            ...company,
-          }));
+          const transformedCompanies = companiesData.map((company: unknown) => {
+            const companyObj = company as Record<string, unknown>;
+            const hrdProfile = companyObj.hrdProfile as
+              | Record<string, unknown>
+              | undefined;
+            return {
+              id: (companyObj.id as string) || "",
+              name:
+                (hrdProfile?.companyName as string) ||
+                (companyObj.companyName as string) ||
+                `${companyObj.firstName || ""} ${companyObj.lastName || ""}`,
+              description:
+                (hrdProfile?.companyDescription as string) ||
+                (companyObj.companyDescription as string) ||
+                "",
+              industry:
+                (hrdProfile?.industry as string) ||
+                (companyObj.industry as string) ||
+                "",
+              location: (companyObj.location as string) || "",
+              size:
+                (hrdProfile?.companySize as string) ||
+                (companyObj.companySize as string) ||
+                "Unknown",
+              website:
+                (hrdProfile?.companyWebsite as string) ||
+                (companyObj.companyWebsite as string) ||
+                "",
+              logo:
+                (hrdProfile?.companyLogo as string) ||
+                (companyObj.companyLogo as string) ||
+                "",
+              jobOpenings:
+                ((companyObj._count as Record<string, unknown>)
+                  ?.jobPostings as number) || 0,
+              isVerified: true, // All database companies are verified
+              foundedYear: companyObj.createdAt
+                ? new Date(companyObj.createdAt as string).getFullYear()
+                : undefined,
+              rating: 4.5 + Math.random() * 0.5, // Generate random rating between 4.5-5.0
+            };
+          });
 
           setCompanies(transformedCompanies);
         } else {
@@ -167,9 +179,10 @@ export default function CompaniesPage() {
           console.warn("API responded with error:", response.message);
           setCompanies([]);
         }
-      } catch (err: any) {
+      } catch (err) {
         console.error("Error fetching companies:", err);
-        setError(err.message || "Network error occurred");
+        const errorObj = err as { message?: string };
+        setError(errorObj?.message || "Network error occurred");
         setCompanies([]);
       } finally {
         setLoading(false);

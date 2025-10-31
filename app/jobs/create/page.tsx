@@ -27,13 +27,7 @@ import {
   ArrowLeft,
   Plus,
   X,
-  MapPin,
-  Building2,
-  Clock,
-  DollarSign,
-  Users,
   Briefcase,
-  Monitor,
   Save,
   Eye,
   Loader2,
@@ -84,8 +78,7 @@ export default function CreateJobPage() {
   const [loading, setLoading] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
   const [skillInput, setSkillInput] = useState("");
-  const [isClient, setIsClient] = useState(false);
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<Record<string, unknown> | null>(null);
 
   const [formData, setFormData] = useState<JobFormData>({
     title: "",
@@ -109,8 +102,6 @@ export default function CreateJobPage() {
 
   // Fetch user profile and auto-fill company name
   useEffect(() => {
-    setIsClient(true);
-
     if (typeof window === "undefined") return;
 
     const token = localStorage.getItem("auth_token");
@@ -133,13 +124,13 @@ export default function CreateJobPage() {
       try {
         const response = await apiClient.getProfile();
         if (response.success && response.data) {
-          const userData = response.data as any;
+          const userData = response.data as Record<string, unknown>;
           setUser(userData);
           // Auto-fill company name for HRD users
           if (userData.role === "HRD" && userData.companyName) {
             setFormData((prev) => ({
               ...prev,
-              companyName: userData.companyName,
+              companyName: userData.companyName as string,
             }));
           }
         }
@@ -149,7 +140,8 @@ export default function CreateJobPage() {
     };
 
     fetchProfile();
-  }, [router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router, toast]);
 
   // Format number with thousand separators (e.g., 9000 → 9.000)
   const formatNumber = (value: string | number): string => {
@@ -167,7 +159,10 @@ export default function CreateJobPage() {
   };
 
   // Handle input changes
-  const handleInputChange = (field: keyof JobFormData, value: any) => {
+  const handleInputChange = (
+    field: keyof JobFormData,
+    value: string | number | string[]
+  ) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     // Clear error when user starts typing
     if (errors[field]) {
@@ -381,55 +376,11 @@ export default function CreateJobPage() {
   const saveDraft = async () => {
     setLoading(true);
     try {
-      // You can implement draft saving logic here
       showSuccess("Draft saved successfully!");
-    } catch (error) {
+    } catch {
       showError("Failed to save draft");
     } finally {
       setLoading(false);
-    }
-  };
-
-  // ✅ ADD: Test API connection function
-  const testApiConnection = async () => {
-    try {
-      console.log("Testing API connection...");
-      console.log("API Base URL:", process.env.NEXT_PUBLIC_API_URL);
-
-      // Test basic API connectivity
-      const response = await fetch(
-        `${
-          process.env.NEXT_PUBLIC_API_URL || "http://localhost:3131/api"
-        }/jobs`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      console.log("API Response Status:", response.status);
-      console.log(
-        "API Response Headers:",
-        Object.fromEntries(response.headers.entries())
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.log("API Error Response:", errorText);
-        showError(`API Test Failed: ${response.status} - ${errorText}`);
-        return;
-      }
-
-      const data = await response.json();
-      console.log("API Test Success:", data);
-      showSuccess("API connection successful!");
-    } catch (error) {
-      console.error("API connection test failed:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error occurred";
-      showError(`API Test Error: ${errorMessage}`);
     }
   };
 
@@ -599,10 +550,6 @@ export default function CreateJobPage() {
               </h1>
             </div>
             <div className="flex items-center space-x-2">
-              {/* ✅ ADD: Test API button */}
-              <Button variant="outline" onClick={testApiConnection} size="sm">
-                Test API
-              </Button>
               <Button variant="outline" onClick={saveDraft} disabled={loading}>
                 <Save className="w-4 h-4 mr-2" />
                 Save Draft
@@ -619,20 +566,6 @@ export default function CreateJobPage() {
           </div>
         </div>
       </header>
-
-      {/* ✅ ADD: Debug info panel (remove after debugging) */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
-        <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-sm">
-          <strong>Debug Info:</strong> API URL:{" "}
-          {process.env.NEXT_PUBLIC_API_URL || "http://localhost:3131/api"} |
-          Token:{" "}
-          {isClient
-            ? localStorage.getItem("auth_token")
-              ? "Present"
-              : "Missing"
-            : "Loading..."}
-        </div>
-      </div>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Error Summary */}

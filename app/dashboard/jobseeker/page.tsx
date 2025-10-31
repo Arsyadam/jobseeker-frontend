@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -12,25 +11,20 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useToast } from "@/components/ui/use-toast";
 import Navbar from "@/components/shared/Navbar";
 import {
   Search,
   Briefcase,
   BookmarkIcon,
-  Bell,
   User,
   TrendingUp,
   Eye,
   MapPin,
   Clock,
   DollarSign,
-  Star,
   ArrowRight,
   Plus,
   Loader2,
-  LogOut,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -65,6 +59,15 @@ interface Notification {
   createdAt: string;
 }
 
+interface User {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  profilePicture?: string;
+  profileComplete?: boolean;
+}
+
 interface DashboardStats {
   totalApplications: number;
   profileViews: number;
@@ -73,11 +76,8 @@ interface DashboardStats {
 }
 
 export default function JobSeekerDashboard() {
-  const router = useRouter();
-  const { toast } = useToast();
-
   // State management
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -96,22 +96,6 @@ export default function JobSeekerDashboard() {
       return localStorage.getItem("token");
     }
     return null;
-  };
-
-  // Handle logout
-  const handleLogout = () => {
-    // Clear token
-    localStorage.removeItem("auth_token");
-    localStorage.removeItem("token");
-
-    // Show toast
-    toast({
-      title: "Berhasil logout",
-      description: "Anda telah keluar dari akun Anda",
-    });
-
-    // Redirect to login
-    router.push("/auth/login");
   };
 
   // Fetch user profile
@@ -232,6 +216,7 @@ export default function JobSeekerDashboard() {
     };
 
     loadDashboardData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Calculate unread notifications
@@ -270,7 +255,7 @@ export default function JobSeekerDashboard() {
             Welcome back, {user?.firstName || "Job Seeker"}! 👋
           </h2>
           <p className="text-gray-600">
-            Here's what's happening with your job search today.
+            Here&apos;s what&apos;s happening with your job search today.
           </p>
         </div>
 

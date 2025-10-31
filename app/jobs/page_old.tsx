@@ -21,14 +21,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Separator } from "@/components/ui/separator";
 import {
   Search,
   MapPin,
   DollarSign,
   Users,
   BookmarkPlus,
-  ArrowLeft,
   SlidersHorizontal,
   Loader2,
   Briefcase,
@@ -73,7 +71,6 @@ const jobTypes = [
   "FREELANCE",
   "INTERNSHIP",
 ];
-const workModes = ["All", "ONSITE", "REMOTE", "HYBRID"];
 
 const formatJobType = (type: string) => {
   const map: Record<string, string> = {
@@ -148,10 +145,9 @@ export default function JobsPage() {
       setError(null);
       try {
         const response = await apiClient.getJobs({ limit: 100 });
-        if (response.success) {
+        if (response.success && response.data && "items" in response.data) {
           // Handle paginated response - extract the items array
-          // Response structure: { success: true, data: { items: [...], pagination: {...} } }
-          const jobsData = (response.data as any)?.items || [];
+          const jobsData = response.data.items as Job[];
           setJobs(jobsData);
         } else {
           setError(response.message || "Failed to fetch jobs");
@@ -246,16 +242,27 @@ export default function JobsPage() {
                 <div className="w-8 h-8 bg-gradient-to-r from-red-500 to-red-600 rounded-full flex items-center justify-center">
                   <span className="text-white font-bold text-sm">JS</span>
                 </div>
-                <span className="text-xl font-bold text-gray-900">JobSeeker</span>
+                <span className="text-xl font-bold text-gray-900">
+                  JobSeeker
+                </span>
               </Link>
               <nav className="hidden md:flex space-x-8">
-                <Link href="/jobs" className="text-gray-900 font-medium border-b-2 border-red-500 pb-4">
+                <Link
+                  href="/jobs"
+                  className="text-gray-900 font-medium border-b-2 border-red-500 pb-4"
+                >
                   Jobs
                 </Link>
-                <Link href="/companies" className="text-gray-600 hover:text-gray-900 pb-4">
+                <Link
+                  href="/companies"
+                  className="text-gray-600 hover:text-gray-900 pb-4"
+                >
                   Companies
                 </Link>
-                <Link href="/talent" className="text-gray-600 hover:text-gray-900 pb-4">
+                <Link
+                  href="/talent"
+                  className="text-gray-600 hover:text-gray-900 pb-4"
+                >
                   Talent
                 </Link>
               </nav>
@@ -264,18 +271,26 @@ export default function JobsPage() {
               {user ? (
                 <div className="flex items-center space-x-3">
                   <Link href="/profile">
-                    <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-900">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-gray-600 hover:text-gray-900"
+                    >
                       Profile
                     </Button>
                   </Link>
                   <Link href="/dashboard">
-                    <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-900">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-gray-600 hover:text-gray-900"
+                    >
                       Dashboard
                     </Button>
                   </Link>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={logout}
                     className="text-gray-600 hover:text-gray-900"
                   >
@@ -285,13 +300,17 @@ export default function JobsPage() {
               ) : (
                 <div className="flex items-center space-x-3">
                   <Link href="/auth/login">
-                    <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-900">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-gray-600 hover:text-gray-900"
+                    >
                       Log in
                     </Button>
                   </Link>
                   <Link href="/auth/register">
-                    <Button 
-                      size="sm" 
+                    <Button
+                      size="sm"
                       className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-full"
                     >
                       Sign up
@@ -308,12 +327,13 @@ export default function JobsPage() {
       <section className="bg-gradient-to-br from-red-50 via-white to-orange-50 py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-5xl font-bold text-gray-900 mb-6">
-            Find what's <span className="text-red-600">next</span>
+            Find what&apos;s <span className="text-red-600">next</span>
           </h1>
           <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-            Discover startup jobs at companies you'll love. Connect directly with founders and hiring managers.
+            Discover startup jobs at companies you&apos;ll love. Connect
+            directly with founders and hiring managers.
           </p>
-          
+
           {/* Search Bar */}
           <div className="max-w-4xl mx-auto">
             <Card className="p-2 shadow-lg border-0">
@@ -323,12 +343,17 @@ export default function JobsPage() {
                   <Input
                     placeholder="Search for jobs, companies, or keywords..."
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                      setSearchQuery(e.target.value)
+                    }
                     className="pl-10 border-0 focus:ring-0 text-lg h-12"
                   />
                 </div>
                 <div className="flex gap-2">
-                  <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                  <Select
+                    value={selectedCategory}
+                    onValueChange={setSelectedCategory}
+                  >
                     <SelectTrigger className="w-40 h-12 border-0">
                       <SelectValue placeholder="Category" />
                     </SelectTrigger>
@@ -340,9 +365,7 @@ export default function JobsPage() {
                       ))}
                     </SelectContent>
                   </Select>
-                  <Button 
-                    className="bg-red-600 hover:bg-red-700 h-12 px-8 text-white rounded-lg"
-                  >
+                  <Button className="bg-red-600 hover:bg-red-700 h-12 px-8 text-white rounded-lg">
                     Search
                   </Button>
                 </div>
@@ -353,7 +376,9 @@ export default function JobsPage() {
           {/* Stats */}
           <div className="flex justify-center space-x-12 mt-12">
             <div className="text-center">
-              <div className="text-3xl font-bold text-gray-900">{sortedJobs.length}+</div>
+              <div className="text-3xl font-bold text-gray-900">
+                {sortedJobs.length}+
+              </div>
               <div className="text-gray-600">Active Jobs</div>
             </div>
             <div className="text-center">
@@ -370,13 +395,6 @@ export default function JobsPage() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex gap-8">
-          {/* Sidebar Filters */}
-          <div className="w-72 hidden lg:block">
-            <div className="sticky top-24">
-              <Card className="p-6 border border-gray-100">
-                <h3 className="font-semibold text-gray-900 mb-4">Filters</h3>
-
         {/* Search and Filters */}
         <div className="bg-white rounded-lg shadow-sm border p-6 mb-8">
           <div className="flex flex-col lg:flex-row gap-4">
@@ -386,7 +404,9 @@ export default function JobsPage() {
               <Input
                 placeholder="Search jobs, companies, or skills..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                  setSearchQuery(e.target.value)
+                }
                 className="pl-10 h-12"
               />
             </div>
@@ -484,7 +504,7 @@ export default function JobsPage() {
                     <Checkbox
                       id="remote"
                       checked={remoteOnly}
-                      onCheckedChange={(checked) =>
+                      onCheckedChange={(checked: boolean | "indeterminate") =>
                         setRemoteOnly(checked as boolean)
                       }
                     />

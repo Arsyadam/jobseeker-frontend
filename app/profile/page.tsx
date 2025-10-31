@@ -21,8 +21,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import Navbar from "@/components/shared/Navbar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ProfilePhotoUpload } from "@/components/ProfilePhotoUpload";
 import {
-  User,
   Mail,
   Phone,
   MapPin,
@@ -34,12 +34,9 @@ import {
   Loader2,
   Camera,
   Building2,
-  GraduationCap,
-  Award,
   Globe,
   Linkedin,
   Github,
-  ArrowLeft,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -121,11 +118,11 @@ interface UserProfile {
     github?: string;
   };
   // Related data
-  skills?: any[];
-  workExperiences?: any[];
-  educations?: any[];
-  certifications?: any[];
-  languages?: any[];
+  skills?: unknown[];
+  workExperiences?: unknown[];
+  educations?: unknown[];
+  certifications?: unknown[];
+  languages?: unknown[];
 }
 
 export default function ProfilePage() {
@@ -138,7 +135,6 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isClient, setIsClient] = useState(false);
 
   // Form data for editing
   const [formData, setFormData] = useState({
@@ -214,7 +210,13 @@ export default function ProfilePage() {
       // Try to upload via API first
       try {
         const response = await apiClient.uploadProfilePhoto(file);
-        if (response.success && response.data && (response.data as any).url) {
+        if (
+          response.success &&
+          response.data &&
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (response.data as any).url
+        ) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           imageUrl = (response.data as any).url;
           showSuccess("Foto profil berhasil diupload ke server");
         } else {
@@ -251,11 +253,13 @@ export default function ProfilePage() {
             showSuccess("Foto profil berhasil disimpan");
 
             // Refresh talent page data if function exists
-            if (
-              typeof window !== "undefined" &&
-              (window as any).refreshTalentData
-            ) {
-              (window as any).refreshTalentData();
+            if (typeof window !== "undefined") {
+              const windowWithRefresh = window as {
+                refreshTalentData?: () => void;
+              };
+              if (windowWithRefresh.refreshTalentData) {
+                windowWithRefresh.refreshTalentData();
+              }
             }
           } else {
             // Even if save fails, keep the local update
@@ -268,7 +272,7 @@ export default function ProfilePage() {
           );
         }
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error uploading photo:", error);
       showError("Gagal mengupload foto profil");
     } finally {
@@ -286,21 +290,26 @@ export default function ProfilePage() {
   };
 
   // Convert User to UserProfile format
-  const convertUserToProfile = (user: any): UserProfile => {
+  const convertUserToProfile = (user: unknown): UserProfile => {
+    const userObj = user as Record<string, unknown>;
     return {
-      ...user,
-      createdAt: user.createdAt || new Date().toISOString(),
-      updatedAt: user.updatedAt || new Date().toISOString(),
-      phone: user.phone || "",
-      location: user.location || "",
-      slug: user.slug || "",
-    };
+      ...userObj,
+      id: (userObj.id as string) || "",
+      email: (userObj.email as string) || "",
+      firstName: (userObj.firstName as string) || "",
+      lastName: (userObj.lastName as string) || "",
+      role: (userObj.role as "JOBSEEKER" | "HRD") || "JOBSEEKER",
+      profileComplete: (userObj.profileComplete as boolean) || false,
+      createdAt: (userObj.createdAt as string) || new Date().toISOString(),
+      updatedAt: (userObj.updatedAt as string) || new Date().toISOString(),
+      phone: (userObj.phone as string) || "",
+      location: (userObj.location as string) || "",
+      slug: (userObj.slug as string) || "",
+    } as UserProfile;
   };
 
   // Fetch user profile
   useEffect(() => {
-    setIsClient(true);
-
     if (typeof window === "undefined") return;
 
     const fetchProfile = async () => {
@@ -344,6 +353,7 @@ export default function ProfilePage() {
     if (!authLoading) {
       fetchProfile();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authUser, authLoading, router]);
 
   // Helper function to save slug to localStorage as fallback
@@ -366,7 +376,7 @@ export default function ProfilePage() {
         try {
           const parsedData = JSON.parse(data);
           return parsedData.slug;
-        } catch (e) {
+        } catch {
           return null;
         }
       }
@@ -382,13 +392,15 @@ export default function ProfilePage() {
 
     if (userData.role === "HRD") {
       // For HRD users, bio should be stored at root level or in hrdProfile
-      const hrdProfile = (userData as any).hrdProfile || {};
+      const userDataObj = userData as unknown as Record<string, unknown>;
+      const hrdProfile =
+        (userDataObj.hrdProfile as Record<string, unknown>) || {};
       setFormData({
         firstName: userData.firstName || "",
         lastName: userData.lastName || "",
         phone: userData.phone || "",
         location: userData.location || "",
-        bio: hrdProfile.bio || (userData as any).bio || "",
+        bio: (hrdProfile.bio as string) || (userDataObj.bio as string) || "",
         skills: [],
         experience: "",
         education: "",
@@ -431,7 +443,7 @@ export default function ProfilePage() {
   };
 
   // Handle input change
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -471,8 +483,32 @@ export default function ProfilePage() {
       console.log("Current formData:", formData);
       console.log("Current formData.slug:", formData.slug);
 
-      // Create update payload
-      const updateData = {
+      // Create update payload with proper typing
+      type UpdateDataType = {
+        firstName: string;
+        lastName: string;
+        phone: string;
+        location: string;
+        profilePicture: string;
+        slug: string;
+        jobSeekerProfile?: {
+          bio: string;
+          skills: string[];
+          experience: string;
+          education: string;
+          portfolio: string;
+          linkedin: string;
+          github: string;
+        };
+        companyName?: string;
+        companySize?: string;
+        industry?: string;
+        hrdProfile?: {
+          bio: string;
+        };
+      };
+
+      const updateData: UpdateDataType = {
         firstName: formData.firstName,
         lastName: formData.lastName,
         phone: formData.phone,
@@ -485,7 +521,7 @@ export default function ProfilePage() {
 
       // Add role-specific data
       if (user?.role === "JOBSEEKER") {
-        (updateData as any).jobSeekerProfile = {
+        updateData.jobSeekerProfile = {
           bio: formData.bio,
           skills: formData.skills,
           experience: formData.experience,
@@ -495,11 +531,11 @@ export default function ProfilePage() {
           github: formData.github,
         };
       } else if (user?.role === "HRD") {
-        (updateData as any).companyName = formData.companyName;
-        (updateData as any).companySize = formData.companySize;
-        (updateData as any).industry = formData.industry;
+        updateData.companyName = formData.companyName;
+        updateData.companySize = formData.companySize;
+        updateData.industry = formData.industry;
         // Add HRD profile data including bio
-        (updateData as any).hrdProfile = {
+        updateData.hrdProfile = {
           bio: formData.bio,
         };
       }
@@ -561,20 +597,35 @@ export default function ProfilePage() {
           // Refresh talent page data if function exists
           if (
             typeof window !== "undefined" &&
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (window as any).refreshTalentData
           ) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (window as any).refreshTalentData();
           }
         } else {
           throw new Error("API update failed");
         }
       } catch (apiError) {
-        console.error("API update failed:", apiError);
+        console.error("=== API ERROR DETAILS ===");
+        console.error("Full error object:", apiError);
+        console.error("Error type:", typeof apiError);
+
+        if (apiError instanceof Error) {
+          console.error("Error message:", apiError.message);
+          console.error("Error name:", apiError.name);
+          console.error("Error stack:", apiError.stack);
+        }
 
         // Check if it's an authentication error
+        const errorObj = apiError as {
+          message?: string;
+          name?: string;
+          status?: number;
+        };
         if (
-          (apiError as any)?.message?.includes("401") ||
-          (apiError as any)?.message?.includes("Unauthorized")
+          errorObj?.message?.includes("401") ||
+          errorObj?.message?.includes("Unauthorized")
         ) {
           showError("Sesi login telah berakhir. Silakan login kembali.");
           router.push("/auth/login");
@@ -583,14 +634,19 @@ export default function ProfilePage() {
 
         // Check if it's a network error
         if (
-          (apiError as any)?.name === "TypeError" &&
-          (apiError as any)?.message?.includes("Failed to fetch")
+          errorObj?.name === "TypeError" &&
+          errorObj?.message?.includes("Failed to fetch")
         ) {
           showError(
-            "Tidak dapat terhubung ke server. Perubahan disimpan secara lokal."
+            "❌ Tidak dapat terhubung ke server (backend tidak berjalan).\n\n✅ Perubahan telah disimpan secara lokal.\n\nPastikan backend API berjalan di http://localhost:3131"
           );
         } else {
-          console.log("API update failed, updating locally:", apiError);
+          console.log("API update failed, using local fallback:", apiError);
+          showError(
+            `⚠️ Server error: ${
+              errorObj?.message || "Unknown error"
+            }. Perubahan disimpan secara lokal.`
+          );
         }
 
         // Fallback: Update user state directly (local behavior)
@@ -623,9 +679,12 @@ export default function ProfilePage() {
           updatedUser.companyName = formData.companyName;
           updatedUser.companySize = formData.companySize;
           updatedUser.industry = formData.industry;
-          // Add HRD profile data
-          (updatedUser as any).hrdProfile = {
-            ...(updatedUser as any).hrdProfile,
+          // Add HRD profile data with proper typing
+          const userWithHrdProfile = updatedUser as UserProfile & {
+            hrdProfile?: { bio?: string; [key: string]: unknown };
+          };
+          userWithHrdProfile.hrdProfile = {
+            ...userWithHrdProfile.hrdProfile,
             bio: formData.bio,
           };
         }
@@ -659,12 +718,14 @@ export default function ProfilePage() {
         // Refresh talent page data if function exists
         if (
           typeof window !== "undefined" &&
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (window as any).refreshTalentData
         ) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (window as any).refreshTalentData();
         }
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error("Error updating profile:", err);
       showError("Gagal memperbarui profil. Silakan coba lagi.");
     } finally {
@@ -1139,6 +1200,44 @@ export default function ProfilePage() {
                     )}
                   </CardContent>
                 </Card>
+
+                {/* Profile Photo Upload Card */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Profile Photo</CardTitle>
+                    <CardDescription>
+                      Upload or update your profile picture
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {typeof window !== "undefined" && (
+                      <ProfilePhotoUpload
+                        authToken={localStorage.getItem("auth_token") || ""}
+                        currentPhotoUrl={user.profilePicture}
+                        onUploadSuccess={(data) => {
+                          setUser((prev) =>
+                            prev ? { ...prev, profilePicture: data.url } : prev
+                          );
+                          updateUser({ profilePicture: data.url });
+                          toast({
+                            title: "Success",
+                            description: `Profile photo uploaded! Profile is now ${data.profileCompletion}% complete.`,
+                          });
+                        }}
+                        onDeleteSuccess={(data) => {
+                          setUser((prev) =>
+                            prev ? { ...prev, profilePicture: undefined } : prev
+                          );
+                          updateUser({ profilePicture: undefined });
+                          toast({
+                            title: "Success",
+                            description: `Profile photo deleted. Profile is now ${data.profileCompletion}% complete.`,
+                          });
+                        }}
+                      />
+                    )}
+                  </CardContent>
+                </Card>
               </TabsContent>
 
               {/* Professional/Company Info Tab */}
@@ -1406,11 +1505,20 @@ export default function ProfilePage() {
                                 Skills
                               </h4>
                               <div className="flex flex-wrap gap-2">
-                                {user.skills.map((skill: any, idx: number) => (
-                                  <Badge key={idx} variant="secondary">
-                                    {skill.name || skill}
-                                  </Badge>
-                                ))}
+                                {user.skills.map(
+                                  (skill: unknown, idx: number) => {
+                                    const skillObj = skill as
+                                      | { name?: string }
+                                      | string;
+                                    return (
+                                      <Badge key={idx} variant="secondary">
+                                        {typeof skillObj === "string"
+                                          ? skillObj
+                                          : skillObj.name || ""}
+                                      </Badge>
+                                    );
+                                  }
+                                )}
                               </div>
                             </div>
                           )}
@@ -1423,29 +1531,40 @@ export default function ProfilePage() {
                                 </h4>
                                 <div className="space-y-2">
                                   {user.workExperiences.map(
-                                    (exp: any, idx: number) => (
-                                      <div key={idx} className="text-sm">
-                                        <p className="font-medium">
-                                          {exp.title || exp.position}
-                                        </p>
-                                        <p className="text-gray-600">
-                                          {exp.company}
-                                        </p>
-                                        {exp.startDate && (
-                                          <p className="text-xs text-gray-500">
-                                            {new Date(
-                                              exp.startDate
-                                            ).toLocaleDateString()}{" "}
-                                            -{" "}
-                                            {exp.endDate
-                                              ? new Date(
-                                                  exp.endDate
-                                                ).toLocaleDateString()
-                                              : "Present"}
+                                    (exp: unknown, idx: number) => {
+                                      const expObj = exp as {
+                                        title?: string;
+                                        position?: string;
+                                        company?: string;
+                                        startDate?: string;
+                                        endDate?: string;
+                                      };
+                                      return (
+                                        <div key={idx} className="text-sm">
+                                          <p className="font-medium">
+                                            {expObj.title ||
+                                              expObj.position ||
+                                              ""}
                                           </p>
-                                        )}
-                                      </div>
-                                    )
+                                          <p className="text-gray-600">
+                                            {expObj.company || ""}
+                                          </p>
+                                          {expObj.startDate && (
+                                            <p className="text-xs text-gray-500">
+                                              {new Date(
+                                                expObj.startDate
+                                              ).toLocaleDateString()}{" "}
+                                              -{" "}
+                                              {expObj.endDate
+                                                ? new Date(
+                                                    expObj.endDate
+                                                  ).toLocaleDateString()
+                                                : "Present"}
+                                            </p>
+                                          )}
+                                        </div>
+                                      );
+                                    }
                                   )}
                                 </div>
                               </div>
@@ -1458,21 +1577,28 @@ export default function ProfilePage() {
                               </h4>
                               <div className="space-y-2">
                                 {user.educations.map(
-                                  (edu: any, idx: number) => (
-                                    <div key={idx} className="text-sm">
-                                      <p className="font-medium">
-                                        {edu.degree}
-                                      </p>
-                                      <p className="text-gray-600">
-                                        {edu.institution}
-                                      </p>
-                                      {edu.year && (
-                                        <p className="text-xs text-gray-500">
-                                          {edu.year}
+                                  (edu: unknown, idx: number) => {
+                                    const eduObj = edu as {
+                                      degree?: string;
+                                      institution?: string;
+                                      year?: string;
+                                    };
+                                    return (
+                                      <div key={idx} className="text-sm">
+                                        <p className="font-medium">
+                                          {eduObj.degree || ""}
                                         </p>
-                                      )}
-                                    </div>
-                                  )
+                                        <p className="text-gray-600">
+                                          {eduObj.institution || ""}
+                                        </p>
+                                        {eduObj.year && (
+                                          <p className="text-xs text-gray-500">
+                                            {eduObj.year}
+                                          </p>
+                                        )}
+                                      </div>
+                                    );
+                                  }
                                 )}
                               </div>
                             </div>
@@ -1486,24 +1612,31 @@ export default function ProfilePage() {
                                 </h4>
                                 <div className="space-y-2">
                                   {user.certifications.map(
-                                    (cert: any, idx: number) => (
-                                      <div key={idx} className="text-sm">
-                                        <p className="font-medium">
-                                          {cert.name}
-                                        </p>
-                                        <p className="text-gray-600">
-                                          {cert.issuer}
-                                        </p>
-                                        {cert.issueDate && (
-                                          <p className="text-xs text-gray-500">
-                                            Issued:{" "}
-                                            {new Date(
-                                              cert.issueDate
-                                            ).toLocaleDateString()}
+                                    (cert: unknown, idx: number) => {
+                                      const certObj = cert as {
+                                        name?: string;
+                                        issuer?: string;
+                                        issueDate?: string;
+                                      };
+                                      return (
+                                        <div key={idx} className="text-sm">
+                                          <p className="font-medium">
+                                            {certObj.name || ""}
                                           </p>
-                                        )}
-                                      </div>
-                                    )
+                                          <p className="text-gray-600">
+                                            {certObj.issuer || ""}
+                                          </p>
+                                          {certObj.issueDate && (
+                                            <p className="text-xs text-gray-500">
+                                              Issued:{" "}
+                                              {new Date(
+                                                certObj.issueDate
+                                              ).toLocaleDateString()}
+                                            </p>
+                                          )}
+                                        </div>
+                                      );
+                                    }
                                   )}
                                 </div>
                               </div>
@@ -1516,13 +1649,25 @@ export default function ProfilePage() {
                               </h4>
                               <div className="flex flex-wrap gap-2">
                                 {user.languages.map(
-                                  (lang: any, idx: number) => (
-                                    <Badge key={idx} variant="outline">
-                                      {lang.name || lang}{" "}
-                                      {lang.proficiency &&
-                                        `(${lang.proficiency})`}
-                                    </Badge>
-                                  )
+                                  (lang: unknown, idx: number) => {
+                                    const langObj = lang as
+                                      | { name?: string; proficiency?: string }
+                                      | string;
+                                    const displayName =
+                                      typeof langObj === "string"
+                                        ? langObj
+                                        : langObj.name || "";
+                                    const proficiency =
+                                      typeof langObj === "object"
+                                        ? langObj.proficiency
+                                        : undefined;
+                                    return (
+                                      <Badge key={idx} variant="outline">
+                                        {displayName}{" "}
+                                        {proficiency && `(${proficiency})`}
+                                      </Badge>
+                                    );
+                                  }
                                 )}
                               </div>
                             </div>

@@ -8,8 +8,8 @@ export class FileUploadService {
   static async ensureUploadDir() {
     try {
       await mkdir(this.uploadDir, { recursive: true })
-    } catch (error) {
-      // Directory already exists
+    } catch {
+      // Directory already exists or permission error - ignore
     }
   }
 
